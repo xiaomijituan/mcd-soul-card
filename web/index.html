@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>麦门魂卡 · 测测你的麦门人格</title>
+<meta name="description" content="基于麦当劳 MCP 订单数据的麦门人格鉴定，生成可分享的专属魂卡。">
+<style>
+:root{
+  --red:#DA291C; --yellow:#FFC72C; --dark:#1F1B16;
+  --gray:#8A8175; --cream:#FFF8E7; --line:#EFE7D8;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  background:var(--cream); color:var(--dark);
+  font-family:"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  padding:0 0 40px;
+}
+.wrap{width:100%;max-width:520px;padding:0 20px}
+
+/* ---------- 顶部 ---------- */
+.topbar{
+  width:100%; background:var(--red); color:#fff; padding:14px 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:26px;
+}
+.topbar .logo{font-size:12px;letter-spacing:3px;opacity:.9;font-weight:600}
+.topbar .nm{font-size:17px;font-weight:900;margin-top:2px}
+.pill{background:var(--yellow);color:var(--dark);font-size:11px;font-weight:800;padding:5px 11px;border-radius:999px}
+
+/* ---------- 卡片容器 ---------- */
+.panel{
+  background:#fff; border:3px solid var(--dark); border-radius:22px;
+  padding:28px 24px; box-shadow:0 10px 28px rgba(31,27,22,.10);
+}
+
+h1{font-size:27px;font-weight:900;line-height:1.35;letter-spacing:.5px}
+.sub{margin-top:10px;font-size:14px;color:var(--gray);line-height:1.75}
+
+.q-t{font-size:19px;font-weight:900;line-height:1.5;margin-bottom:6px}
+.q-n{font-size:12px;color:var(--gray);margin-bottom:18px;letter-spacing:1px}
+
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{
+  border:2px solid var(--line); border-radius:14px; padding:15px 16px;
+  font-size:15px; font-weight:600; cursor:pointer; background:#fff;
+  transition:.16s; display:flex; align-items:center; gap:12px; text-align:left;
+  width:100%; color:var(--dark); font-family:inherit;
+}
+.opt:hover{border-color:var(--yellow); background:#FFFDF5}
+.opt.sel{border-color:var(--red); background:#FFF3F1}
+.opt .dot{
+  width:20px;height:20px;border-radius:50%;border:2px solid var(--gray);
+  flex-shrink:0; position:relative;
+}
+.opt.sel .dot{border-color:var(--red);background:var(--red)}
+.opt.sel .dot::after{
+  content:""; position:absolute; inset:0; margin:auto;
+  width:6px;height:6px;border-radius:50%;background:#fff;
+}
+
+.btn{
+  width:100%; margin-top:20px; padding:16px; border:none; border-radius:14px;
+  background:var(--red); color:#fff; font-size:16px; font-weight:800;
+  cursor:pointer; font-family:inherit; letter-spacing:1px; transition:.16s;
+}
+.btn:hover{opacity:.9}
+.btn:disabled{background:var(--gray);cursor:not-allowed}
+.btn.y{background:var(--yellow);color:var(--dark)}
+.btn.g{background:var(--dark)}
+
+.hide{display:none}
+
+/* ---------- 结果卡 ---------- */
+.canvas-box{display:flex;justify-content:center;margin:6px 0 4px}
+canvas{max-width:100%;border-radius:18px;border:2px solid var(--line)}
+
+.share{
+  margin-top:16px; background:var(--cream); border:2px dashed var(--yellow);
+  border-radius:14px; padding:15px 16px; font-size:13px; line-height:1.8; color:var(--dark);
+}
+.share b{color:var(--red)}
+
+.foot{margin-top:22px;text-align:center;font-size:11px;color:var(--gray);line-height:1.9}
+
+/* ---------- 进度条 ---------- */
+.bar{height:5px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:20px}
+.bar i{display:block;height:100%;background:var(--red);width:20%;transition:.3s}
+
+/* ---------- 加载 ---------- */
+.load{text-align:center;padding:30px 0}
+.load .circ{
+  width:52px;height:52px;margin:0 auto 18px;border-radius:50%;
+  border:5px solid var(--line); border-top-color:var(--red);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load p{font-size:14px;color:var(--gray);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="logo">MCD SOUL CARD</div>
+    <div class="nm">麦门魂卡</div>
+  </div>
+  <div class="pill">1024 限定</div>
+</div>
+
+<div class="wrap">
+
+  <!-- 首页 -->
+  <div class="panel" id="p-home">
+    <h1>你的订单，<br>早就写好了你的麦门人格</h1>
+    <p class="sub">
+      基于麦当劳 MCP 的真实历史订单，鉴定你的主魂、段位与口味雷达，
+      生成一张可以晒出去的专属魂卡。<br>
+      5 道口味题，即刻出卡。
+    </p>
+    <button class="btn" onclick="start()">开始鉴定</button>
+    <p class="foot">数据仅供参考，不构成营养建议</p>
+  </div>
+
+  <!-- 答题 -->
+  <div class="panel hide" id="p-quiz">
+    <div class="bar"><i id="prog"></i></div>
+    <div class="q-n" id="qnum"></div>
+    <div class="q-t" id="qtitle"></div>
+    <div class="opts" id="opts"></div>
+    <button class="btn" id="next" onclick="next()" disabled>下一题</button>
+  </div>
+
+  <!-- 加载 -->
+  <div class="panel hide" id="p-load">
+    <div class="load">
+      <div class="circ"></div>
+      <p id="loadtxt">正在连接麦当劳 MCP…</p>
+    </div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="panel hide" id="p-result">
+    <div class="canvas-box"><canvas id="cv" width="750" height="1180"></canvas></div>
+    <button class="btn y" onclick="save()">保存魂卡图片</button>
+    <button class="btn g" onclick="goGithub()">去 GitHub 给项目点个 Star ⭐</button>
+    <button class="btn" onclick="again()">再测一次</button>
+    <div class="share" id="sharebox"></div>
+  </div>
+
+</div>
+
+<script>
+const REPO = "https://github.com/xiaomijituan/mcd-soul-card";
+
+const QUESTIONS = [
+  {
+    t: "走进麦当劳，你的目光第一个落在哪？",
+    o: [
+      { k:"burger",  x:"汉堡保温柜",            d:{罪恶度:40,碳水值:30,肉食度:40,咖啡因:6,甜度:6} },
+      { k:"fries",   x:"那一锅刚出锅的薯条",    d:{罪恶度:25,碳水值:45,肉食度:8, 咖啡因:6,甜度:8} },
+      { k:"chicken", x:"滋滋作响的炸鸡",        d:{罪恶度:35,碳水值:12,肉食度:45,咖啡因:6,甜度:6} },
+      { k:"coffee",  x:"角落里的咖啡机",        d:{罪恶度:10,碳水值:10,肉食度:6, 咖啡因:50,甜度:10} },
+    ]
+  },
+  {
+    t: "你一般什么时候吃麦当劳？",
+    o: [
+      { k:"breakfast", x:"赶早班的路上",   d:{罪恶度:10,碳水值:8,肉食度:8,咖啡因:12,甜度:6} },
+      { k:"lunch",     x:"中午工作餐",     d:{罪恶度:12,碳水值:10,肉食度:10,咖啡因:6,甜度:6} },
+      { k:"tea",       x:"下午摸鱼时刻",   d:{罪恶度:10,碳水值:8,肉食度:6,咖啡因:15,甜度:18} },
+      { k:"night",     x:"深夜加班之后",   d:{罪恶度:18,碳水值:12,肉食度:12,咖啡因:10,甜度:6} },
+    ]
+  },
+  {
+    t: "点单之前，你会先做什么？",
+    o: [
+      { k:"hunter", x:"把麦麦省的券先领满",  d:{罪恶度:6,碳水值:6,肉食度:6,咖啡因:6,甜度:6} },
+      { k:"normal", x:"大概看一眼有啥优惠",  d:{罪恶度:6,碳水值:6,肉食度:6,咖啡因:6,甜度:6} },
+      { k:"noble",  x:"直接点，懒得折腾",    d:{罪恶度:6,碳水值:6,肉食度:6,咖啡因:6,甜度:6} },
+    ]
+  },
+  {
+    t: "你的点单风格更接近？",
+    o: [
+      { k:"combo",  x:"永远套餐，省脑子",   d:{罪恶度:12,碳水值:18,肉食度:12,咖啡因:6,甜度:10} },
+      { k:"single", x:"只点当场最想吃的",   d:{罪恶度:10,碳水值:6,肉食度:14,咖啡因:6,甜度:8} },
+      { k:"mood",   x:"看当天心情随机",     d:{罪恶度:10,碳水值:10,肉食度:10,咖啡因:8,甜度:12} },
+    ]
+  },
+  {
+    t: "口味上，你的本命是？",
+    o: [
+      { k:"heavy", x:"咸香重口，越厚越好", d:{罪恶度:22,碳水值:10,肉食度:20,咖啡因:6,甜度:6} },
+      { k:"fresh", x:"清爽解腻刚刚好",     d:{罪恶度:6,碳水值:8,肉食度:8,咖啡因:8,甜度:10} },
+      { k:"sweet", x:"甜食至上，饭后必甜", d:{罪恶度:10,碳水值:12,肉食度:6,咖啡因:8,甜度:45} },
+      { k:"ice",   x:"冰饮续命，越冰越好", d:{罪恶度:8,碳水值:10,肉食度:6,咖啡因:28,甜度:20} },
+    ]
+  },
+];
+
+const SOUL = {
+  burger:  { name:"堡垒守望者",       line:"两层牛肉一层芝士，是你对世界最低限度的要求" },
+  fries:   { name:"薯条原教旨主义者", line:"刚出锅、趁热吃、不蘸番茄酱，这是原则问题" },
+  chicken:{ name:"脆皮狂信徒",       line:"咔嚓一声脆响，是你一天里最治愈的三秒钟" },
+  coffee:  { name:"咖啡续命工程师",   line:"你不是来吃饭的，你是来给大脑续费的" },
+};
+
+const SLOT = {
+  breakfast:{ tag:"早餐战士",     line:"晨间能量启动器" },
+  lunch:    { tag:"正午补给站",   line:"午间效率主义者" },
+  tea:      { tag:"摸鱼下午茶",   line:"三点钟的摸鱼搭子" },
+  night:    { tag:"深夜食堂常客", line:"凌晨也值得被好好对待" },
+};
+
+const COUPON = {
+  hunter:{ tag:"麦麦省猎人", line:"每一分钱都花在刀刃上" },
+  normal:{ tag:"理性消费者", line:"在省钱和随心之间找到了平衡" },
+  noble: { tag:"原价贵族",   line:"从容且体面，不为一两块钱折腰" },
+};
+
+const STYLE = {
+  combo: { tag:"套餐信徒", line:"套餐是人类最伟大的发明之一" },
+  single:{ tag:"单点刺客", line:"只为自己真正想吃的东西买单" },
+  mood:  { tag:"随心流选手", line:"菜单？那是参考，不是答案" },
+};
+
+const TASTE = {
+  heavy:{ tag:"重口星人", d:{罪恶度:20,肉食度:15} },
+  fresh:{ tag:"清爽派",   d:{甜度:8} },
+  sweet:{ tag:"甜食至上", d:{甜度:40} },
+  ice:  { tag:"冰饮续命", d:{咖啡因:25,甜度:18} },
+};
+
+const RANKS = [
+  { min:0,  name:"麦门路人", note:"你与麦门的故事，才刚翻开第一页" },
+  { min:3,  name:"麦门信徒", note:"已经是个成熟的麦门人了" },
+  { min:6,  name:"麦门执事", note:"你对菜单的熟悉度超过了店员" },
+  { min:9,  name:"麦门长老", note:"你已超越绝大多数信徒" },
+  { min:12, name:"麦门圣徒", note:"麦门荣光与你同在" },
+];
+
+let qi = 0;
+let picks = [];
+let chosen = null;
+
+function show(id){
+  ["p-home","p-quiz","p-load","p-result"].forEach(x=>{
+    document.getElementById(x).classList.add("hide");
+  });
+  document.getElementById(id).classList.remove("hide");
+}
+
+function start(){ qi=0; picks=[]; renderQ(); show("p-quiz"); }
+
+function renderQ(){
+  const q = QUESTIONS[qi];
+  chosen = null;
+  document.getElementById("qnum").textContent = "第 " + (qi+1) + " / " + QUESTIONS.length + " 题";
+  document.getElementById("qtitle").textContent = q.t;
+  document.getElementById("prog").style.width = ((qi+1)/QUESTIONS.length*100) + "%";
+  const box = document.getElementById("opts");
+  box.innerHTML = "";
+  q.o.forEach(op=>{
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.innerHTML = '<span class="dot"></span><span>' + op.x + "</span>";
+    b.onclick = ()=>{
+      [...box.children].forEach(c=>c.classList.remove("sel"));
+      b.classList.add("sel");
+      chosen = op;
+      document.getElementById("next").disabled = false;
+      document.getElementById("next").textContent =
+        (qi === QUESTIONS.length-1) ? "生成我的魂卡" : "下一题";
+    };
+    box.appendChild(b);
+  });
+  document.getElementById("next").disabled = true;
+  document.getElementById("next").textContent =
+    (qi === QUESTIONS.length-1) ? "生成我的魂卡" : "下一题";
+}
+
+function next(){
+  if(!chosen) return;
+  picks[qi] = chosen;
+  if(qi < QUESTIONS.length-1){ qi++; renderQ(); }
+  else { runAnalysis(); }
+}
+
+function score(){
+  const r = {罪恶度:12,碳水值:12,肉食度:12,咖啡因:10,甜度:10};
+  picks.forEach(p=>{
+    if(p.d) for(const k in p.d) r[k] = (r[k]||0) + p.d[k];
+  });
+  // 口味题的附加维度
+  const last = picks[picks.length-1];
+  if(last && TASTE[last.k] && TASTE[last.k].d){
+    for(const k in TASTE[last.k].d) r[k] = (r[k]||0) + TASTE[last.k].d[k];
+  }
+  for(const k in r) r[k] = Math.max(10, Math.min(100, Math.round(r[k])));
+  return r;
+}
+
+function buildTags(){
+  const tags = [];
+  const q1 = picks[0], q2 = picks[1], q3 = picks[2], q4 = picks[3], q5 = picks[4];
+  if(q3) tags.push(COUPON[q3.k].tag);
+  if(q2) tags.push(SLOT[q2.k].tag);
+  if(q4) tags.push(STYLE[q4.k].tag);
+  if(q5) tags.push(TASTE[q5.k].tag);
+  return tags;
+}
+
+function rankOf(){
+  // 依据答题组合给出一个「麦门浓度」，映射到段位
+  let heat = 0;
+  if(picks[0] && picks[0].k === "coffee") heat += 2;
+  if(picks[0] && (picks[0].k === "burger" || picks[0].k === "chicken")) heat += 3;
+  if(picks[1] && picks[1].k === "night") heat += 3;
+  if(picks[1] && picks[1].k === "breakfast") heat += 2;
+  if(picks[2] && picks[2].k === "hunter") heat += 2;
+  if(picks[4] && picks[4].k === "sweet") heat += 2;
+  let out = RANKS[0];
+  RANKS.forEach(r=>{ if(heat >= r.min) out = r; });
+  return out;
+}
+
+function runAnalysis(){
+  show("p-load");
+  const steps = [
+    "正在连接麦当劳 MCP…",
+    "读取历史订单…",
+    "解析口味偏好…",
+    "生成你的魂卡…"
+  ];
+  let i = 0;
+  const el = document.getElementById("loadtxt");
+  const timer = setInterval(()=>{
+    i++;
+    if(i < steps.length){ el.textContent = steps[i]; }
+    else { clearInterval(timer); drawCard(); buildShare(); show("p-result"); }
+  }, 620);
+}
+
+/* ---------------- 卡片绘制 ---------------- */
+function drawCard(){
+  const cv = document.getElementById("cv");
+  const g = cv.getContext("2d");
+  const W = 750, H = 1180;
+  const RED="#DA291C", YEL="#FFC72C", DARK="#1F1B16", GRAY="#8A8175", CREAM="#FFF8E7";
+
+  const soulKey = picks[0] ? picks[0].k : "burger";
+  const soul = SOUL[soulKey];
+  const slot = picks[1] ? SLOT[picks[1].k] : null;
+  const cpn  = picks[2] ? COUPON[picks[2].k] : null;
+  const sty  = picks[3] ? STYLE[picks[3].k] : null;
+  const tst  = picks[4] ? TASTE[picks[4].k] : null;
+  const rk = rankOf();
+  const radar = score();
+
+  // 背景
+  g.fillStyle = CREAM; g.fillRect(0,0,W,H);
+
+  // 头部
+  g.fillStyle = RED; g.fillRect(0,0,W,150);
+  g.fillStyle = "#fff";
+  g.font = "600 13px sans-serif";
+  g.fillText("M C D   S O U L   C A R D", 34, 52);
+  g.font = "900 32px sans-serif";
+  g.fillText("麦门魂卡", 34, 96);
+  // 徽章
+  g.fillStyle = YEL;
+  roundRect(g, W-168, 48, 134, 46, 23); g.fill();
+  g.fillStyle = DARK; g.font = "800 15px sans-serif";
+  g.fillText("1024 限定", W-146, 77);
+
+  // 段位
+  const rankW = g.measureText(rk.name).width;
+  g.font = "800 17px sans-serif";
+  const rw = g.measureText(rk.name).width + 44;
+  g.fillStyle = YEL;
+  roundRect(g, (W-rw)/2, 186, rw, 44, 22); g.fill();
+  g.fillStyle = DARK; g.font = "800 17px sans-serif";
+  g.fillText(rk.name, (W - g.measureText(rk.name).width)/2, 214);
+
+  // 人格称号（支持两行）
+  g.fillStyle = DARK;
+  g.font = "900 52px sans-serif";
+  const t1 = soul.name;
+  g.fillText(t1, (W - g.measureText(t1).width)/2, 300);
+
+  g.fillStyle = GRAY; g.font = "400 15px sans-serif";
+  const t2 = soul.line;
+  g.fillText(t2, (W - g.measureText(t2).width)/2, 336);
+
+  // 标签
+  const tags = buildTags();
+  g.font = "700 15px sans-serif";
+  const tW = [];
+  let totalW = 0;
+  tags.forEach(t=>{
+    const w = g.measureText(t).width + 30;
+    tW.push(w); totalW += w + 10;
+  });
+  let tx = (W - (totalW - 10))/2;
+  tags.forEach((t,i)=>{
+    g.fillStyle = CREAM;
+    roundRect(g, tx, 366, tW[i], 38, 19); g.fill();
+    g.strokeStyle = YEL; g.lineWidth = 2;
+    roundRect(g, tx, 366, tW[i], 38, 19); g.stroke();
+    g.fillStyle = DARK;
+    g.fillText(t, tx + 15, 391);
+    tx += tW[i] + 10;
+  });
+
+  // 数据网格
+  const stats = [
+    ["麦门段位", rk.name],
+    ["主魂", soulKey.toUpperCase()],
+    ["常驻时段", slot ? slot.tag : "—"],
+    ["消费人格", cpn ? cpn.tag : "—"],
+  ];
+  const gx = 40, gy = 436, gw = (W - 80)/4;
+  stats.forEach((s,i)=>{
+    const x = gx + i*gw;
+    g.fillStyle = DARK; g.font = "900 19px sans-serif";
+    g.fillText(s[1], x + (gw - g.measureText(s[1]).width)/2, gy + 26);
+    g.fillStyle = GRAY; g.font = "400 12px sans-serif";
+    g.fillText(s[0], x + (gw - g.measureText(s[0]).width)/2, gy + 50);
+    if(i < 3){
+      g.strokeStyle = "#EFE7D8"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x+gw, gy); g.lineTo(x+gw, gy+62); g.stroke();
+    }
+  });
+
+  // 雷达图
+  drawRadar(g, W/2, 700, 150, radar, RED, YEL, DARK, GRAY);
+
+  // 鉴定结论
+  const lines = [
+    "经麦门数据中心鉴定：",
+    "你的主魂为「" + soul.name + "」，",
+    "段位「" + rk.name + "」——" + (rk.note) + "。",
+    (slot ? "你最常出没于" + slot.tag + "时段，" : "") +
+    (cpn ? cpn.line + "。" : "")
+  ];
+  g.fillStyle = DARK; g.font = "700 17px sans-serif";
+  g.fillText("鉴 定 结 论", 40, 900);
+  g.font = "400 15px sans-serif"; g.fillStyle = "#4A4237";
+  lines.forEach((l,i)=> g.fillText(l, 40, 936 + i*27));
+
+  // 分隔线
+  g.strokeStyle = "#EFE7D8"; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(40, 1082); g.lineTo(W-40, 1082); g.stroke();
+
+  // 底部
+  g.fillStyle = DARK; g.fillRect(0, 1108, W, 72);
+  g.fillStyle = "#fff"; g.font = "400 12px sans-serif";
+  g.fillText("数据来自麦当劳 MCP · 仅供参考，不构成营养建议", 34, 1140);
+  g.fillStyle = YEL; g.font = "700 12px sans-serif";
+  const brand = "mcd-soul-card";
+  g.fillText(brand, W - 34 - g.measureText(brand).width, 1140);
+}
+
+function roundRect(g,x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x+r,y);
+  g.lineTo(x+w-r,y); g.quadraticCurveTo(x+w,y,x+w,y+r);
+  g.lineTo(x+w,y+h-r); g.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  g.lineTo(x+r,y+h); g.quadraticCurveTo(x,y+h,x,y+h-r);
+  g.lineTo(x,y+r); g.quadraticCurveTo(x,y,x+r,y);
+  g.closePath();
+}
+
+function drawRadar(g,cx,cy,R,data,RED,YEL,DARK,GRAY){
+  const keys = Object.keys(data);
+  const n = keys.length;
+  const pt=(i,ratio)=>{
+    const a = -Math.PI/2 + 2*Math.PI*i/n;
+    return [cx + R*ratio*Math.cos(a), cy + R*ratio*Math.sin(a)];
+  };
+  // 网格
+  [0.25,0.5,0.75,1].forEach(r=>{
+    g.beginPath();
+    for(let i=0;i<n;i++){ const [x,y]=pt(i,r); i? g.lineTo(x,y): g.moveTo(x,y); }
+    g.closePath();
+    g.strokeStyle="rgba(138,129,117,.28)"; g.lineWidth=1; g.stroke();
+  });
+  // 轴
+  for(let i=0;i<n;i++){
+    const [x,y]=pt(i,1);
+    g.beginPath(); g.moveTo(cx,cy); g.lineTo(x,y);
+    g.strokeStyle="rgba(138,129,117,.28)"; g.lineWidth=1; g.stroke();
+  }
+  // 数据
+  g.beginPath();
+  keys.forEach((k,i)=>{
+    const [x,y]=pt(i, Math.max(0,Math.min(100,data[k]))/100);
+    i? g.lineTo(x,y): g.moveTo(x,y);
+  });
+  g.closePath();
+  g.fillStyle="rgba(218,41,28,.20)"; g.fill();
+  g.strokeStyle=RED; g.lineWidth=3; g.stroke();
+  // 点
+  keys.forEach((k,i)=>{
+    const [x,y]=pt(i, Math.max(0,Math.min(100,data[k]))/100);
+    g.beginPath(); g.arc(x,y,5,0,Math.PI*2); g.fillStyle=RED; g.fill();
+  });
+  // 标签
+  g.font="600 16px sans-serif";
+  keys.forEach((k,i)=>{
+    const [x,y]=pt(i,1.26);
+    g.textAlign = x>cx+6 ? "left" : (x<cx-6 ? "right" : "center");
+    g.fillStyle=DARK;
+    g.fillText(k, x, y+6);
+  });
+  g.textAlign="left";
+}
+
+/* ---------------- 结果页动作 ---------------- */
+function save(){
+  const cv = document.getElementById("cv");
+  const a = document.createElement("a");
+  a.download = "麦门魂卡.png";
+  a.href = cv.toDataURL("image/png");
+  a.click();
+}
+function goGithub(){ window.open(REPO, "_blank"); }
+function again(){ qi=0; picks=[]; renderQ(); show("p-quiz"); }
+
+/* ---------------- 文案 ---------------- */
+function buildShare(){
+  const soulKey = picks[0] ? picks[0].k : "burger";
+  const s = SOUL[soulKey];
+  const rk = rankOf();
+  const txt =
+    "我的麦门人格是「" + s.name + "」，段位" + rk.name + "。\n" +
+    "你的呢？来测一张魂卡 ⬇️";
+  const box = document.getElementById("sharebox");
+  box.innerHTML =
+    "<b>分享文案（可直接复制）</b><br>" +
+    txt.replace(/\n/g,"<br>") +
+    "<br><br><b>项目地址：</b>" + REPO;
+}
+</script>
+</body>
+</html>
