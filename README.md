@@ -10,6 +10,8 @@
 > ⭐ **本项目正在参加麦当劳程序员创意开发大赛，排名以 GitHub Star 数为依据。**
 > 如果它对你有用，欢迎点个 Star —— 每一个都是冲榜的燃料。
 
+🎮 **不想装环境？30 秒在线测一张：** <https://mcd-soul-card.app.workbuddy.host/?sharecode=WC6YBA4BL2>
+
 ---
 
 ## ✨ 效果
