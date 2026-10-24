@@ -20,6 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from card import render_card          # noqa: E402
 from mcp_client import McDonaldMCP, MCPError  # noqa: E402
+from nutrition import (                # noqa: E402
+    GOALS, build_catalog, build_meal, nutrition_profile, parse_nutrition_table,
+)
 from persona import build_persona, normalize_orders  # noqa: E402
 
 DEMO_ORDERS = [
@@ -90,6 +93,61 @@ def fetch_orders(limit: int = 100):
     return orders, client
 
 
+def fetch_nutrition(client) -> list:
+    """通过 MCP 拉取真实餐品营养数据。"""
+    raw = client.call("list-nutrition-foods", {})
+    rows = parse_nutrition_table(raw.get("data") if isinstance(raw, dict) else raw)
+    return build_catalog(rows)
+
+
+def fetch_nearby_stores(client, city: str, keyword: str, be_type: int = 1) -> list:
+    """
+    查询附近门店。实测要点：searchType=2 时 city 与 keyword 必须同时提供，
+    只给其一会返回 600058「城市名或者关键词不能为空」。
+    """
+    raw = client.call(
+        "query-nearby-stores",
+        {"beType": be_type, "searchType": 2, "city": city, "keyword": keyword},
+    )
+    data = raw.get("data") if isinstance(raw, dict) else raw
+    return data if isinstance(data, list) else []
+
+
+def summarize_meal(meal: dict, catalog_size: int, store_name: str = "") -> str:
+    """终端可读的营养教练报告。"""
+    goal = meal["goal"]
+    lines = [
+        "",
+        "=" * 46,
+        f"  麦门营养教练 · 目标「{goal.label}」",
+        "=" * 46,
+        f"  {goal.brief}",
+        "-" * 46,
+        "  推荐搭配：",
+    ]
+    for f in meal["items"]:
+        lines.append(
+            f"    · {f.name:<16} {f.kcal:>6.0f} 千卡  "
+            f"蛋白 {f.protein:>5.1f}g  碳水 {f.carb:>5.1f}g  脂肪 {f.fat:>5.1f}g"
+        )
+    lines.append("-" * 46)
+    lines.append(
+        f"  合计：{meal['total_kcal']} 千卡 | 蛋白 {meal['total_protein']}g | "
+        f"碳水 {meal['total_carb']}g | 脂肪 {meal['total_fat']}g | 钠 {meal['total_sodium']}mg"
+    )
+    if meal["equivalents"]:
+        lines.append(f"  热量约等于：{' / '.join(meal['equivalents'])}")
+    lines.append("-" * 46)
+    lines.append(f"  {meal['comment']}")
+    lines.append("-" * 46)
+    lines.append(f"  营养数据来源：麦当劳 MCP list-nutrition-foods（共 {catalog_size} 个餐品真实数据）")
+    if store_name:
+        lines.append(f"  参考门店：{store_name}")
+    lines.append("  ⚠ 仅供参考，不构成营养或医疗建议。")
+    lines.append("=" * 46)
+    return "\n".join(lines)
+
+
 def summarize(persona) -> str:
     """终端可读的鉴定摘要。"""
     lines = [
@@ -118,19 +176,82 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=100, help="拉取订单数量上限")
     parser.add_argument("--out", default="mcd_soul_card.html", help="卡片输出路径")
     parser.add_argument("--json", dest="json_out", default="", help="同时导出人格数据 JSON")
+    parser.add_argument(
+        "--coach", metavar="目标", default="",
+        help=f"营养教练模式，可选：{' / '.join(GOALS.keys())}",
+    )
+    parser.add_argument("--city", default="", help="城市名（配合 --coach --keyword 使用）")
+    parser.add_argument("--keyword", default="", help="门店关键词，如「历下」")
     args = parser.parse_args()
 
-    owner = os.getenv("GITHUB_OWNER", "mcd-soul-card")
+    owner = os.getenv("GITHUB_OWNER", "xiaomijituan")
 
+    # ---------------------------------------------------------- 营养教练模式
+    if args.coach:
+        goal = args.coach
+        if goal not in GOALS:
+            print(f"[错误] 未知目标「{goal}」，可选：{' / '.join(GOALS.keys())}", file=sys.stderr)
+            return 1
+        try:
+            client = McDonaldMCP()
+            client.initialize()
+
+            print("[MCP] 拉取餐品营养数据…")
+            catalog = fetch_nutrition(client)
+            if not catalog:
+                print("[错误] 未获取到营养数据", file=sys.stderr)
+                return 1
+            print(f"[MCP] 已获取 {len(catalog)} 个餐品的真实营养数据")
+
+            # 门店信息为可选增强：受营业时间限制，失败不影响主流程
+            store_name = ""
+            if args.city and args.keyword:
+                try:
+                    stores = fetch_nearby_stores(client, args.city, args.keyword)
+                    if stores:
+                        store_name = str(stores[0].get("storeName", ""))
+                        print(f"[MCP] 参考门店：{store_name}")
+                except MCPError as exc:
+                    print(f"[提示] 门店查询未成功（不影响推荐）：{exc}")
+
+            meal = build_meal(catalog, goal)
+            print(summarize_meal(meal, len(catalog), store_name))
+            return 0
+        except MCPError as exc:
+            print(f"\n[错误] {exc}", file=sys.stderr)
+            return 1
+
+    # ------------------------------------------------------------- 人格卡模式
     try:
+        client = None
+        nutrition = []
         if args.demo:
             orders = normalize_orders(DEMO_ORDERS)
-            print("[演示模式] 使用内置示例订单，未调用 MCP。")
+            print("[演示模式] 使用内置示例订单，订单数据未调用 MCP。")
+            # 营养数据仍取自真实 MCP，用于展示营养画像模块
+            if os.getenv("MCD_MCP_TOKEN"):
+                try:
+                    client = McDonaldMCP()
+                    client.initialize()
+                    nutrition = fetch_nutrition(client)
+                    print(f"[MCP] 已获取 {len(nutrition)} 个餐品的真实营养数据")
+                except MCPError as exc:
+                    print(f"[提示] 营养数据未获取：{exc}")
         else:
-            orders, _ = fetch_orders(args.limit)
+            orders, client = fetch_orders(args.limit)
             print(f"[MCP] 成功拉取 {len(orders)} 条历史订单。")
+            try:
+                nutrition = fetch_nutrition(client)
+                print(f"[MCP] 已获取 {len(nutrition)} 个餐品的真实营养数据")
+            except MCPError as exc:
+                print(f"[提示] 营养数据未获取：{exc}")
 
         persona = build_persona(orders)
+
+        profile = None
+        if nutrition and orders:
+            profile = nutrition_profile(orders, nutrition)
+            persona.nutrition = profile
 
         if orders:
             print(summarize(persona))
@@ -151,6 +272,7 @@ def main() -> int:
                         "stats": persona.stats,
                         "top_items": persona.top_items,
                         "verdict": persona.verdict,
+                        "nutrition": getattr(persona, "nutrition", None),
                     },
                     f,
                     ensure_ascii=False,

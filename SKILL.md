@@ -1,12 +1,13 @@
 ---
 name: mcd-soul-card
-description: 麦门魂卡 —— 基于麦当劳 MCP 的历史订单数据，鉴定用户的麦门人格（主魂、段位、行为标签、口味雷达），生成一张可分享的专属卡片。当用户提到「麦门人格」「麦当劳年度报告」「我的麦当劳数据」「麦门魂卡」「测测我的麦门属性」「看看我吃了多少麦当劳」时使用。也可用于演示麦当劳 MCP（order-list / query-order / list-nutrition-foods）的组合调用范式。
-version: 1.0.0
+description: 麦门魂卡 —— 基于麦当劳 MCP 的历史订单数据，鉴定用户的麦门人格（主魂、段位、行为标签、口味雷达），生成一张可分享的专属卡片；并提供基于 160 个餐品真实营养数据的套餐推荐（减脂/增肌/省钱/解馋/加班）。当用户提到「麦门人格」「麦当劳年度报告」「我的麦当劳数据」「麦门魂卡」「测测我的麦门属性」「看看我吃了多少麦当劳」「减脂吃什么麦当劳」「麦当劳热量」时使用。也可用于演示麦当劳 MCP（order-list / query-order / list-nutrition-foods / query-nearby-stores / query-meals）的组合调用范式。
+version: 1.1.0
 ---
 
 # 麦门魂卡（mcd-soul-card）
 
-把用户沉睡的麦当劳订单，变成一张值得晒出去的人格卡。
+把用户沉睡的麦当劳订单，变成一张值得晒出去的人格卡；
+并用真实营养数据，回答「今天该吃什么」。
 
 ---
 
@@ -43,9 +44,19 @@ export MCD_MCP_TOKEN='你的Token'
 
 ```bash
 cd mcd-soul-card
-python src/main.py                              # 生成真实魂卡
-python src/main.py --demo                       # 无 Token 演示
+
+# 生成人格魂卡
+python src/main.py                              # 拉取真实订单，生成卡片
+python src/main.py --demo                       # 无 Token 演示（营养数据仍取自真实 MCP）
 python src/main.py --out my.html --json d.json  # 指定输出并导出数据
+
+# 营养教练（基于 160 个餐品真实营养数据）
+python src/main.py --coach 减脂
+python src/main.py --coach 增肌 --city 济南 --keyword 历下   # 附参考门店
+
+# 测试
+python tests/test_normalize.py
+python tests/test_nutrition.py
 ```
 
 输出：`mcd_soul_card.html`，浏览器打开即可查看与截图分享。
@@ -56,10 +67,13 @@ python src/main.py --out my.html --json d.json  # 指定输出并导出数据
 
 | 参数 | 说明 | 默认 |
 |---|---|---|
-| `--demo` | 用内置示例订单，不调用 MCP | 否 |
+| `--demo` | 用内置示例订单，订单数据不调用 MCP | 否 |
 | `--limit` | 拉取订单数上限 | 100 |
 | `--out` | 卡片输出路径 | `mcd_soul_card.html` |
 | `--json` | 导出人格数据 JSON | 不导出 |
+| `--coach` | 营养教练模式：`减脂`/`增肌`/`省钱`/`解馋`/`加班` | 关闭 |
+| `--city` | 城市名（配合 `--coach`） | 空 |
+| `--keyword` | 门店关键词（配合 `--coach`） | 空 |
 
 ---
 
@@ -72,8 +86,21 @@ python src/main.py --out my.html --json d.json  # 指定输出并导出数据
 | 行为标签 | 时段分布、用券率、品类集中度 |
 | 口味雷达 | 品类结构 + 营养数据加权（0–100） |
 | 本命单品 | 回购次数 TOP 5 |
+| 营养账本 | 订单餐品 × 真实营养表匹配后的累计热量/蛋白/碳水/脂肪 |
 
 品类名：汉堡 / 薯条 / 炸鸡 / 咖啡 / 甜品 / 早餐 / 饮料 / 其他
+
+## 营养教练目标
+
+| 目标 | 策略 |
+|---|---|
+| 减脂 | 单位热量蛋白质密度最高、热量适中 |
+| 增肌 | 蛋白质密度优先，碳水足量 |
+| 省钱 | 优先小份组合（迷你薯条、小杯饮料） |
+| 解馋 | 热量拉满但分量可控 |
+| 加班 | 热量足、蛋白够 |
+
+> 推荐一律**在品类内部**比较，避免把 0 千卡的饮料选成主食。
 
 ---
 

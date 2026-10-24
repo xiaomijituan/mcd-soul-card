@@ -62,6 +62,15 @@
     padding:16px 18px; border-radius:0 14px 14px 0;
     font-size:14px; line-height:1.85; color:#1F1B16;
   }
+  .nut { background:#FFF8E7; border-radius:14px; padding:16px 18px; margin:14px 0 4px; }
+  .nut-row { text-align:center; margin-bottom:12px; }
+  .nut-v { font-size:32px; font-weight:900; color:#DA291C; line-height:1.1; }
+  .nut-k { font-size:12px; color:#8A8175; margin-top:4px; }
+  .nut-grid { display:flex; border-top:1px solid #1F1B1622; padding-top:12px; }
+  .nut-cell { flex:1; text-align:center; }
+  .nut-cell b { display:block; font-size:18px; color:#1F1B16; }
+  .nut-cell span { font-size:11px; color:#8A8175; }
+  .nut-note { font-size:11px; color:#8A8175; text-align:center; margin-top:12px; }
   .foot {
     background:#1F1B16; color:#fff; padding:16px 30px;
     display:flex; justify-content:space-between; align-items:center; font-size:12px;
@@ -85,7 +94,7 @@
     <div class="note">真信徒，无需多言</div>
   </div>
 
-  <div class="tags"><span class="tag">麦麦省猎人</span><span class="tag">早餐战士</span><span class="tag">薯条脑</span></div>
+  <div class="tags"><span class="tag">麦麦省猎人</span><span class="tag">薯条脑</span></div>
 
   <div class="stats"><div class="stat"><div class="stat-v">5</div><div class="stat-k">订单总数</div></div><div class="stat"><div class="stat-v">170.5</div><div class="stat-k">总消费</div></div><div class="stat"><div class="stat-v">13</div><div class="stat-k">餐品件数</div></div><div class="stat"><div class="stat-v">34.1</div><div class="stat-k">客单价</div></div></div>
 
@@ -93,18 +102,31 @@
 
   <div class="body">
     <div class="sec-t">麦门档案</div>
-    <div class="meta"><span class="meta-k">首次下单</span><span class="meta-v">2026-03-11</span></div><div class="meta"><span class="meta-k">最近下单</span><span class="meta-v">2026-10-08</span></div><div class="meta"><span class="meta-k">麦龄</span><span class="meta-v">212 天</span></div><div class="meta"><span class="meta-k">最常出没</span><span class="meta-v">早餐</span></div>
+    <div class="meta"><span class="meta-k">首次下单</span><span class="meta-v">2026-03-11</span></div><div class="meta"><span class="meta-k">最近下单</span><span class="meta-v">2026-10-08</span></div><div class="meta"><span class="meta-k">麦龄</span><span class="meta-v">212 天</span></div><div class="meta"><span class="meta-k">最常出没</span><span class="meta-v">多时段型</span></div>
 
     <div class="sec-t">本命单品 TOP 5</div>
     <ol><li><span class="rk">1</span><span class="nm">中份薯条</span><span class="qt">×2</span></li><li><span class="rk">2</span><span class="nm">中杯可乐</span><span class="qt">×2</span></li><li><span class="rk">3</span><span class="nm">猪柳蛋麦满分</span><span class="qt">×1</span></li><li><span class="rk">4</span><span class="nm">小杯美式</span><span class="qt">×1</span></li><li><span class="rk">5</span><span class="nm">巨无霸</span><span class="qt">×1</span></li></ol>
 
+    <div class="sec-t">麦门营养账本</div>
+    <div class="nut">
+      <div class="nut-row">
+        <div class="nut-v">1701</div>
+        <div class="nut-k">累计千卡，约等于 12.2 罐可乐 / 6.8 份麦辣鸡腿堡 / 7.7 份薯条</div>
+      </div>
+      <div class="nut-grid">
+        <div class="nut-cell"><b>81g</b><span>蛋白质</span></div>
+        <div class="nut-cell"><b>155g</b><span>碳水</span></div>
+        <div class="nut-cell"><b>82g</b><span>脂肪</span></div>
+      </div>
+      <div class="nut-note">基于麦当劳 MCP 真实营养数据（5 件餐品匹配成功）计算</div>
+    </div>
     <div class="sec-t">鉴定结论</div>
-    <div class="verdict">经麦门数据中心鉴定：你共下单 5 次，累计 170.5 元，麦龄 212 天。<br>你的主魂为「堡垒守望者」，段位「麦门信徒」——早餐时段是你最常出没的时刻。<br>最爱的单品是「中份薯条」，已回购 2 次，这就是你的本命。<br>你用券率超过五成，是麦麦省的资深猎人，每一分钱都花在刀刃上。</div>
+    <div class="verdict">经麦门数据中心鉴定：你共下单 5 次，累计 170.5 元，麦龄 212 天。<br>你的主魂为「堡垒守望者」，段位「麦门信徒」——多时段型时段是你最常出没的时刻。<br>最爱的单品是「中份薯条」，已回购 2 次，这就是你的本命。<br>你用券率超过五成，是麦麦省的资深猎人，每一分钱都花在刀刃上。</div>
   </div>
 
   <div class="foot">
     <div>数据来自 <b>麦当劳 MCP</b> · 仅供参考，不构成营养建议</div>
-    <div>mcd-soul-card</div>
+    <div>xiaomijituan</div>
   </div>
 </div>
 </body>

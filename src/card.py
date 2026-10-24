@@ -122,6 +122,26 @@ def render_card(persona, owner: str = "", output_path: str = "mcd_soul_card.html
 
     verdict_html = "<br>".join(_esc(l) for l in persona.verdict.split("\n"))
 
+    # ---- 营养画像（依据 MCP 真实营养数据计算）----
+    nutrition_html = ""
+    n = getattr(persona, "nutrition", None)
+    if n and n.get("total_kcal"):
+        eq = "，约等于 " + " / ".join(n["equivalents"]) if n.get("equivalents") else ""
+        nutrition_html = f"""
+    <div class="sec-t">麦门营养账本</div>
+    <div class="nut">
+      <div class="nut-row">
+        <div class="nut-v">{n['total_kcal']}</div>
+        <div class="nut-k">累计千卡{eq}</div>
+      </div>
+      <div class="nut-grid">
+        <div class="nut-cell"><b>{n['total_protein']}g</b><span>蛋白质</span></div>
+        <div class="nut-cell"><b>{n['total_carb']}g</b><span>碳水</span></div>
+        <div class="nut-cell"><b>{n['total_fat']}g</b><span>脂肪</span></div>
+      </div>
+      <div class="nut-note">基于麦当劳 MCP 真实营养数据（{n['matched']} 件餐品匹配成功）计算</div>
+    </div>"""
+
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -186,6 +206,15 @@ def render_card(persona, owner: str = "", output_path: str = "mcd_soul_card.html
     padding:16px 18px; border-radius:0 14px 14px 0;
     font-size:14px; line-height:1.85; color:{DARK};
   }}
+  .nut {{ background:{BG_LIGHT}; border-radius:14px; padding:16px 18px; margin:14px 0 4px; }}
+  .nut-row {{ text-align:center; margin-bottom:12px; }}
+  .nut-v {{ font-size:32px; font-weight:900; color:{RED}; line-height:1.1; }}
+  .nut-k {{ font-size:12px; color:{GRAY}; margin-top:4px; }}
+  .nut-grid {{ display:flex; border-top:1px solid {DARK}22; padding-top:12px; }}
+  .nut-cell {{ flex:1; text-align:center; }}
+  .nut-cell b {{ display:block; font-size:18px; color:{DARK}; }}
+  .nut-cell span {{ font-size:11px; color:{GRAY}; }}
+  .nut-note {{ font-size:11px; color:{GRAY}; text-align:center; margin-top:12px; }}
   .foot {{
     background:{DARK}; color:#fff; padding:16px 30px;
     display:flex; justify-content:space-between; align-items:center; font-size:12px;
@@ -221,7 +250,7 @@ def render_card(persona, owner: str = "", output_path: str = "mcd_soul_card.html
 
     <div class="sec-t">本命单品 TOP 5</div>
     <ol>{top_html}</ol>
-
+{nutrition_html}
     <div class="sec-t">鉴定结论</div>
     <div class="verdict">{verdict_html}</div>
   </div>

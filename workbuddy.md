@@ -75,16 +75,21 @@
 
 | 文件 | 内容 |
 |---|---|
-| `src/mcp_client.py` | MCP Streamable HTTP 客户端，零依赖标准库实现，兼容 JSON 与 SSE 响应 |
+| `src/mcp_client.py` | MCP Streamable HTTP 客户端，零依赖标准库实现，多层响应解析（Markdown 包装 / 嵌套 JSON 字符串 / JSON 后置说明） |
 | `src/persona.py` | 人格鉴定算法：品类归类、段位分档、行为标签、口味雷达 |
-| `src/card.py` | 卡片渲染：HTML + SVG 雷达图，麦当劳红黄配色 |
-| `src/main.py` | 主入口：串联 MCP 拉取 → 归一化 → 人格计算 → 卡片生成 |
+| `src/nutrition.py` | 营养教练：营养表解析、餐品目录、按品类分层的五目标推荐、套餐组合、营养画像 |
+| `src/card.py` | 卡片渲染：HTML + SVG 雷达图 + 营养账本模块，麦当劳红黄配色 |
+| `src/main.py` | 主入口：串联 MCP 拉取 → 归一化 → 人格计算 → 卡片生成；另有 `--coach` 营养教练模式 |
 | `web/index.html` | 网页版：单文件纯前端，答 5 题出卡，可保存图片 |
-| `README.md` | 项目介绍、安装、使用示例、目标用户 |
-| `MCP_INTEGRATION.md` | MCP 接入说明 |
+| `README.md` | 项目介绍、安装、使用示例、目标用户、实测踩坑清单 |
+| `MCP_INTEGRATION.md` | MCP 接入说明：实际调用的 5 个 Tool、参数约束、调用流程、业务价值 |
 | `CONTEST_DECLARATION.md` | 官方参赛声明原文 |
 | `mcp-config.example.json` | 脱敏配置示例 |
 | `SKILL.md` | Skill 定义 |
+| `PROMO.md` | 冲榜推广物料（5 个平台成品文案） |
+| `HANDOVER.md` | 参赛推送与报名交接文档 |
+| `tests/test_normalize.py` | 38 项断言 |
+| `tests/test_nutrition.py` | 41 项断言 |
 
 ### 4.3 技术决策
 
@@ -104,7 +109,9 @@ WorkBuddy 在开发过程中已通过已配置的麦当劳 MCP 连接器完成**
 | MCP 握手 `initialize` | ✅ 成功 |
 | `tools/list` | ✅ 返回 **35 个工具**（官方文档列出 33 个，线上已多出 `query-survey-coupon` 等） |
 | `order-list` | ✅ 调用成功，返回 `{"success":true,"code":200}` |
-| `list-nutrition-foods` | ✅ 返回 **160 个餐品**的真实营养数据（能量/蛋白质/脂肪/碳水等） |
+| `list-nutrition-foods` | ✅ 返回 **160 个餐品**的真实营养数据（能量/蛋白质/脂肪/碳水/钠/钙） |
+| `query-nearby-stores` | ✅ 返回 **5 家真实门店**（含 storeCode / 店名 / 地址 / 距离） |
+| `query-meals` | ⚠️ 返回 `600057 门店可能已关闭或不在营业时间`（真实世界限制，非代码问题） |
 | `query-my-account` | ✅ 返回账户积分等真实数据 |
 | `mall-points-products` | ✅ 返回积分商城真实商品列表 |
 | `campaign-calendar` | ✅ 返回活动日历 |
@@ -159,12 +166,19 @@ MCD_MCP_TOKEN=xxx python tests/test_normalize.py
 |---|---|---|
 | 1 | 本机无 `requests`，项目无法直接运行 | 改用 Python 标准库 `urllib` 重写传输层，做到**零依赖** |
 | 2 | MCP 返回 Markdown，`json.loads` 失败 | 新增 `_extract_payload()` 提取 `## Original Response` 后的 JSON |
-| 3 | 字段名与直觉不符，取不到数据 | 归一化层兼容多组候选键名 |
-| 4 | 套餐子项未计入统计 | 递归展开 `comboItemList` |
-| 5 | 已取消订单被计入人格 | 按 `orderStatus` 过滤 |
-| 6 | 空 `data` 被兜底成 1 条假订单 | 增加 `_ORDER_MARKERS` 校验 |
-| 7 | 时段平票时误打「深夜食堂常客」 | 阈值改为占比严格 > 50%，否则标「多时段型」 |
-| 8 | 雷达图右侧维度标签被裁切 | SVG 增加左右留白，标签半径比 1.22 → 1.18 |
+| 3 | 部分工具的 JSON 后面还跟着说明文字 | 改用 `raw_decode` 只解析 JSON 前缀 |
+| 4 | `data` 字段本身是字符串化 JSON | 新增 `_deep_parse()` 递归还原嵌套 JSON |
+| 5 | 说明文字里的 `data[].xxx` 被误判成空数组 | 扫描时只接受 `{` 开头且结果为 dict |
+| 6 | 字段名与直觉不符，取不到数据 | 归一化层兼容多组候选键名 |
+| 7 | 套餐子项未计入统计 | 递归展开 `comboItemList` |
+| 8 | 已取消订单被计入人格 | 按 `orderStatus` 过滤 |
+| 9 | 空 `data` 被兜底成 1 条假订单 | 增加 `_ORDER_MARKERS` 校验 |
+| 10 | 时段平票时误打「深夜食堂常客」 | 阈值改为占比严格 > 50%，否则标「多时段型」 |
+| 11 | 雷达图右侧维度标签被裁切 | SVG 增加左右留白，标签半径比 1.22 → 1.18 |
+| 12 | 营养数据是非 JSON 的紧凑表格文本 | 新增 `parse_nutrition_table()` 按 `[总数]{字段}:` 格式解析 |
+| 13 | 减脂推荐把 0 千卡的饮料选成主食 | 改为**按品类分组、组内比较**，主食强制热量 > 200 |
+| 14 | `query-nearby-stores` 返回 600058 | `searchType=2` 时 city 与 keyword 必须同时提供 |
+| 15 | `query-meals` 打烊时不可用 | 定位为可选增强，核心推荐逻辑可独立降级 |
 
 ---
 

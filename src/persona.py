@@ -93,6 +93,7 @@ class Persona:
     stats: dict[str, Any]       # 关键数据
     verdict: str                # 鉴定文案
     top_items: list[tuple[str, int]]
+    nutrition: dict | None = None   # 营养画像（由 main.py 依据真实营养数据填充）
 
 
 # ------------------------------------------------------------------ 归一化

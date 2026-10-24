@@ -10,15 +10,19 @@
 
 | 项目 | 状态 |
 |---|---|
-| 产品代码 | ✅ 完成，38 项测试全通过 |
-| 真实 MCP 调用 | ✅ 已验证（握手成功，35 个工具可用） |
-| 本地 Git 仓库 | ✅ 已初始化，2 次提交 |
+| 产品代码 | ✅ 完成，79 项测试全通过 |
+| 真实 MCP 调用 | ✅ 已验证（握手成功，35 个工具可用，160 餐品真实营养数据） |
+| 本地 Git 仓库 | ✅ 已初始化，4 次提交 |
 | **GitHub 远程仓库** | ❌ **未创建 —— 这是你要做的第一件事** |
 | **报名 Issue** | ❌ **未提交 —— 这是你要做的最后一步** |
 | 推广物料 | ✅ 已备好（`PROMO.md`） |
 
 **项目路径**：`E:\AI\AgentData\WorkBuddyData\mcd-soul-card`
 **目标仓库地址**：`https://github.com/xiaomijituan/mcd-soul-card`
+
+**项目包含两个能力**：
+1. **麦门魂卡** —— 读历史订单 → 鉴定麦门人格 → 出可分享卡片
+2. **麦门营养教练** —— 用 160 个餐品真实营养数据 → 按减脂/增肌/省钱/解馋/加班推荐套餐
 
 ---
 
@@ -184,11 +188,14 @@ E:\AI\AgentData\WorkBuddyData\mcd-soul-card\
 ├── HANDOVER.md               本文档
 ├── src/
 │   ├── main.py               入口：拉取 → 归一化 → 算人格 → 出卡片
-│   ├── mcp_client.py         MCP Streamable HTTP 客户端（零依赖，含 Markdown 响应解析）
+│   ├── mcp_client.py         MCP Streamable HTTP 客户端（零依赖，含多层响应解析）
 │   ├── persona.py            人格算法（品类归类 / 段位 / 标签 / 雷达）
-│   └── card.py               卡片渲染（HTML + SVG 雷达图）
+│   ├── nutrition.py          营养教练（营养表解析 / 分目标推荐 / 套餐组合 / 画像）
+│   └── card.py               卡片渲染（HTML + SVG 雷达图 + 营养账本）
 ├── web/index.html            网页版（单文件，答 5 题出卡，离线可用）
-├── tests/test_normalize.py   38 项测试
+├── tests/
+│   ├── test_normalize.py     38 项断言
+│   └── test_nutrition.py     41 项断言
 └── images/demo_card.png      示例卡片图
 ```
 
@@ -199,15 +206,19 @@ E:\AI\AgentData\WorkBuddyData\mcd-soul-card\
 ```bash
 cd "E:/AI/AgentData/WorkBuddyData/mcd-soul-card"
 
-# 跑测试（含真实 MCP 连通测试，需要 Token）
-MCD_MCP_TOKEN=xxx python tests/test_normalize.py
+# 跑测试（79 项断言）
+python tests/test_normalize.py
+python tests/test_nutrition.py
 
-# 演示模式出卡（无需 Token）
-python src/main.py --demo --out images/demo_card.html
+# 演示模式出卡（订单用示例，营养数据走真实 MCP）
+MCD_MCP_TOKEN=xxx python src/main.py --demo --out images/demo_card.html
 
 # 真实数据出卡
-export MCD_MCP_TOKEN=xxx
-python src/main.py --out my_card.html
+MCD_MCP_TOKEN=xxx python src/main.py --out my_card.html
+
+# 营养教练
+MCD_MCP_TOKEN=xxx python src/main.py --coach 减脂
+MCD_MCP_TOKEN=xxx python src/main.py --coach 增肌 --city 济南 --keyword 历下
 ```
 
 **MCP Token 已在 `C:\Users\24563\.workbuddy\mcp.json` 中配置好**
@@ -226,11 +237,18 @@ os.environ['MCD_MCP_TOKEN'] = cfg['mcpServers']['mcd-mcp']['headers']['Authoriza
 | 坑 | 说明 |
 |---|---|
 | **MCP 返回是 Markdown 不是 JSON** | 真实数据在 `## Original Response` 之后，`mcp_client._extract_payload()` 已处理 |
+| **JSON 后面还跟着说明文字** | `json.loads` 整体解析失败，改用 `raw_decode` 只取 JSON 前缀 |
+| **`data` 字段本身是字符串化 JSON** | 需递归深度解析才能拿到真正的数组 |
+| **说明文字里的 `data[].xxx` 会被误判** | 扫描 JSON 时只接受 `{` 开头且结果为 dict，否则 `[]` 会被当成空数组 |
 | **字段名不能猜** | 真实字段是 `createTime` / `realTotalAmount` / `orderProductList[].productName`，不是 `orderTime`/`payAmount`/`items` |
 | **套餐子项要展开** | `orderProductList[].comboItemList` 里的商品同样计入统计 |
 | **已取消订单要过滤** | `orderStatus` 含「取消」的订单不计入人格统计 |
 | **空 data 会造出假订单** | `{"data":{}}` 会被兜底成 1 条空订单，已用 `_ORDER_MARKERS` 修掉 |
 | **时段标签平票会误判** | 必须占比 **> 50%** 才算「常驻」，否则标「多时段型」 |
+| **营养数据不是 JSON** | 是 `[160]{字段}:` 的紧凑表格文本，需自行解析 |
+| **推荐不能全局排序** | 必须按品类分层，否则减脂模式会把 0 千卡的饮料选成主食 |
+| **门店查询要 city + keyword 同给** | `searchType=2` 时只给一个会返回 600058 |
+| **门店菜单受营业时间限制** | 打烊时 `query-meals` 返回 600057，营养推荐必须能独立降级 |
 | **官方账号无历史订单** | 当前 MCP Token 对应账号 `order-list` 返回空，**不是 bug**。营养/积分/优惠券等工具均有真实数据 |
 
 ---

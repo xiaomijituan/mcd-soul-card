@@ -265,7 +265,7 @@ class McDonaldMCP:
 
         # 情况 1：本身就是 JSON
         try:
-            return json.loads(s)
+            return McDonaldMCP._deep_parse(json.loads(s))
         except json.JSONDecodeError:
             pass
 
@@ -282,19 +282,51 @@ class McDonaldMCP:
                 if tail[:4].lower() == "json":
                     tail = tail[4:].strip()
             try:
-                return json.loads(tail)
+                return McDonaldMCP._deep_parse(json.loads(tail))
             except json.JSONDecodeError:
                 pass
 
-        # 情况 3：兜底，扫描第一个可解析的 JSON 片段
+        # 情况 3：扫描第一个可解析的 JSON 对象
+        # 用 raw_decode 只解析 JSON 前缀，容忍其后跟随的说明文字。
+        # 只接受 '{' 开头且结果为 dict —— 说明文字里常出现 `data[].xxx`
+        # 这类方括号片段，不能当成 JSON 数组。
+        decoder = json.JSONDecoder()
         for i, ch in enumerate(s):
-            if ch in "{[":
-                try:
-                    return json.loads(s[i:])
-                except json.JSONDecodeError:
-                    continue
+            if ch != "{":
+                continue
+            try:
+                obj, _ = decoder.raw_decode(s[i:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(obj, dict):
+                return McDonaldMCP._deep_parse(obj)
 
         return raw
+
+    @staticmethod
+    def _deep_parse(obj: Any, depth: int = 0) -> Any:
+        """
+        递归解析「被字符串化的嵌套 JSON」。
+
+        麦当劳 MCP 的响应存在多层包装：外层是 JSON，
+        而 `data` 字段的值又是一个 JSON 字符串。
+        这里统一把这类嵌套字符串还原成真正的对象。
+        """
+        if depth > 5:
+            return obj
+        if isinstance(obj, str):
+            s = obj.strip()
+            if len(s) > 1 and s[0] in "{[":
+                try:
+                    return McDonaldMCP._deep_parse(json.loads(s), depth + 1)
+                except json.JSONDecodeError:
+                    return obj
+            return obj
+        if isinstance(obj, dict):
+            return {k: McDonaldMCP._deep_parse(v, depth + 1) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [McDonaldMCP._deep_parse(v, depth + 1) for v in obj]
+        return obj
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<McDonaldMCP endpoint={self.endpoint} session={self.session_id}>"
