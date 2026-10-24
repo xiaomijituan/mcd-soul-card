@@ -7,9 +7,14 @@
 
 为 [麦当劳程序员创意开发大赛](https://github.com/M-China/mcd-developer-innovation-challenge) 参赛作品。
 
+> ⭐ **本项目正在参加麦当劳程序员创意开发大赛，排名以 GitHub Star 数为依据。**
+> 如果它对你有用，欢迎点个 Star —— 每一个都是冲榜的燃料。
+
 ---
 
 ## ✨ 效果
+
+![麦门魂卡示例](images/demo_card.png)
 
 从你的历史订单里算出：
 

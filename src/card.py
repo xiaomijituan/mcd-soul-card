@@ -67,7 +67,7 @@ def _radar_svg(radar: dict[str, int], size: int = 320) -> str:
     # 维度标签
     labels = ""
     for i, key in enumerate(keys):
-        x, y = point(i, 1.22)
+        x, y = point(i, 1.18)
         anchor = "middle"
         if x > cx + 8:
             anchor = "start"
@@ -78,8 +78,11 @@ def _radar_svg(radar: dict[str, int], size: int = 320) -> str:
             f'font-size="15" font-weight="600" fill="{DARK}">{_esc(key)}</text>'
         )
 
+    # 左右留白，避免边缘维度标签被裁切
+    pad = 42
     return (
-        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
+        f'<svg width="{size + pad * 2}" height="{size}" '
+        f'viewBox="{-pad} 0 {size + pad * 2} {size}" '
         f'xmlns="http://www.w3.org/2000/svg">'
         f"{rings}{axes}"
         f'<polygon points="{pts}" fill="{RED}" fill-opacity="0.22" '
