@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:1280px; height:640px; overflow:hidden;
+         font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;
+         background:linear-gradient(135deg,#FFC72C 0%,#FFD95E 45%,#FFE89A 100%);
+         display:flex; align-items:center; }
+  .wrap { display:flex; width:100%; padding:0 70px; align-items:center; gap:56px; }
+  .left { flex:1.15; }
+  .badge { display:inline-block; background:#DA291C; color:#FFC72C; font-size:19px;
+           font-weight:800; padding:9px 22px; border-radius:999px; letter-spacing:1px;
+           margin-bottom:26px; }
+  h1 { font-size:88px; color:#DA291C; font-weight:900; letter-spacing:2px;
+       line-height:1.05; margin-bottom:20px; }
+  h1 span { color:#3E2723; }
+  .slogan { font-size:31px; color:#5D4037; font-weight:700; line-height:1.45;
+            margin-bottom:30px; }
+  .feats { display:flex; gap:12px; flex-wrap:wrap; }
+  .feat { background:rgba(255,255,255,.82); border:2px solid #DA291C; color:#3E2723;
+          font-size:20px; font-weight:700; padding:9px 18px; border-radius:12px; }
+  .cta { margin-top:32px; font-size:23px; color:#DA291C; font-weight:800; }
+  .right { flex:1; display:flex; justify-content:center; }
+  .card { width:390px; background:#fff; border-radius:26px; padding:26px 24px 22px;
+          box-shadow:0 24px 60px rgba(62,39,35,.28); border:3px solid #DA291C; }
+  .card .t { font-size:15px; color:#8D6E63; font-weight:700; letter-spacing:3px;
+             text-align:center; margin-bottom:14px; }
+  .card .soul { font-size:37px; color:#DA291C; font-weight:900; text-align:center;
+                margin-bottom:6px; }
+  .card .rank { text-align:center; font-size:17px; color:#3E2723; font-weight:700;
+                margin-bottom:18px; }
+  .card .rank b { background:#FFC72C; padding:3px 12px; border-radius:8px; }
+  .card .tags { display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+                margin-bottom:18px; }
+  .card .tags span { background:#FFF3D6; border:1.5px solid #FFC72C; color:#5D4037;
+                     font-size:14px; font-weight:700; padding:5px 11px; border-radius:999px; }
+  .card .stats { display:flex; justify-content:space-around; border-top:2px dashed #FFE0B2;
+                padding-top:15px; }
+  .card .stats div { text-align:center; }
+  .card .stats b { display:block; font-size:25px; color:#DA291C; font-weight:900; }
+  .card .stats i { font-style:normal; font-size:12px; color:#8D6E63; font-weight:600; }
+  .foot { position:absolute; right:34px; bottom:22px; font-size:16px; color:#8D6E63;
+          font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="left">
+    <div class="badge">🍔 麦当劳程序员创意开发大赛 · 参赛作品</div>
+    <h1>麦门<span>魂卡</span></h1>
+    <div class="slogan">你的订单，早就写好了<br>你的麦门人格。</div>
+    <div class="feats">
+      <div class="feat">🧬 人格鉴定</div>
+      <div class="feat">📊 口味雷达</div>
+      <div class="feat">🥩 营养账本</div>
+      <div class="feat">⚡ 30 秒出卡</div>
+    </div>
+    <div class="cta">答 5 道题，看看你是哪种麦门人 →</div>
+  </div>
+  <div class="right">
+    <div class="card">
+      <div class="t">麦 门 魂 卡</div>
+      <div class="soul">薯条原教旨主义者</div>
+      <div class="rank">段位 <b>麦门执事</b></div>
+      <div class="tags"><span>麦麦省猎人</span><span>深夜食堂常客</span><span>原价贵族</span></div>
+      <div class="stats">
+        <div><b>127</b><i>累计订单</i></div>
+        <div><b>¥6.4k</b><i>麦门投入</i></div>
+        <div><b>38</b><i>回购单品</i></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="foot">github.com/xiaomijituan/mcd-soul-card</div>
+</body>
+</html>
