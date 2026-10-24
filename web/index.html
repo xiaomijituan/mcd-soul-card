@@ -144,6 +144,7 @@ canvas{max-width:100%;border-radius:18px;border:2px solid var(--line)}
   <div class="panel hide" id="p-result">
     <div class="canvas-box"><canvas id="cv" width="750" height="1180"></canvas></div>
     <button class="btn y" onclick="save()">保存魂卡图片</button>
+    <button class="btn y" onclick="copyShare()">复制分享文案</button>
     <button class="btn g" onclick="goGithub()">去 GitHub 给项目点个 Star ⭐</button>
     <button class="btn" onclick="again()">再测一次</button>
     <div class="share" id="sharebox"></div>
@@ -536,12 +537,31 @@ function buildShare(){
   const rk = rankOf();
   const txt =
     "我的麦门人格是「" + s.name + "」，段位" + rk.name + "。\n" +
-    "你的呢？来测一张魂卡 ⬇️";
+    "来麦当劳程序员创意开发大赛测一张你的魂卡 ⬇️\n" +
+    location.href;
   const box = document.getElementById("sharebox");
   box.innerHTML =
     "<b>分享文案（可直接复制）</b><br>" +
     txt.replace(/\n/g,"<br>") +
-    "<br><br><b>项目地址：</b>" + REPO;
+    "<br><br><b>开源项目：</b><a href=\"" + REPO + "\" target=\"_blank\">" + REPO + "</a>";
+  window.__shareText = txt;
+}
+function copyShare(){
+  const t = window.__shareText || "";
+  const done = function(){
+    const b = document.querySelector("#sharebox b");
+    if (b) { b.textContent = "✅ 已复制，去粘贴给你的朋友吧"; }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(fallbackCopy);
+  } else { fallbackCopy(); }
+  function fallbackCopy(){
+    const ta = document.createElement("textarea");
+    ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
 }
 </script>
 </body>
