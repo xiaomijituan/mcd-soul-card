@@ -158,9 +158,9 @@ Star 的话就更好了，蹭个榜 👏
 最服的是它真读了我的订单，不是瞎编的。
 
 30 秒出图，不用注册不用授权，玩一下👇
-https://github.com/xiaomijituan/mcd-soul-card
+https://mcd-soul-card.app.workbuddy.host/?sharecode=WC6YBA4BL2
 
-（顺手点个 Star 就算支持了）
+（顺手点个 Star 就算支持了 https://github.com/xiaomijituan/mcd-soul-card）
 ```
 
 **配图**：`images/demo_card.png`
@@ -170,7 +170,8 @@ https://github.com/xiaomijituan/mcd-soul-card
 发个自己撸的小玩意儿：麦当劳 MCP 做的麦门人格卡，
 答 5 道题出图，读的是你真实订单。
 
-链接：https://github.com/xiaomijituan/mcd-soul-card
+在线玩：https://mcd-soul-card.app.workbuddy.host/?sharecode=WC6YBA4BL2
+仓库：https://github.com/xiaomijituan/mcd-soul-card
 
 （参加了麦当劳的程序员创意开发大赛，Star 数算排名，
 帮个忙点点哈 🙏）
