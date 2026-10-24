@@ -94,22 +94,100 @@
 
 ---
 
-## 五、进行中的工作
+## 五、真实 MCP 调用验证记录
 
-- [ ] 申请并配置 MCP Token
-- [ ] 用真实订单验证 MCP 调用链路
-- [ ] 创建 GitHub 公开仓库并推送
-- [ ] 通过指定 Issue 模板提交报名
-- [ ] 冲榜推广（目标进入排行榜前列）
+WorkBuddy 在开发过程中已通过已配置的麦当劳 MCP 连接器完成**真实调用验证**，
+以下为实测结果（Token 存放于 `~/.workbuddy/mcp.json` 的 `mcd-mcp` 配置项）：
+
+| 验证项 | 实测结果 |
+|---|---|
+| MCP 握手 `initialize` | ✅ 成功 |
+| `tools/list` | ✅ 返回 **35 个工具**（官方文档列出 33 个，线上已多出 `query-survey-coupon` 等） |
+| `order-list` | ✅ 调用成功，返回 `{"success":true,"code":200}` |
+| `list-nutrition-foods` | ✅ 返回 **160 个餐品**的真实营养数据（能量/蛋白质/脂肪/碳水等） |
+| `query-my-account` | ✅ 返回账户积分等真实数据 |
+| `mall-points-products` | ✅ 返回积分商城真实商品列表 |
+| `campaign-calendar` | ✅ 返回活动日历 |
+| `now-time-info` | ✅ 返回服务器时间 |
+
+**响应格式的关键发现（踩坑记录）**：
+
+麦当劳 MCP Server 的响应并非纯 JSON，而是 Markdown 包装：
+
+```
+# API Response Information
+...
+## Response Structure     <- 字段说明
+## Original Response      <- 真正的 JSON 在这里
+{"success":true,"code":200,"data":{...}}
+```
+
+且真实字段名为 `createTime` / `realTotalAmount` / `orderProductList[].productName`，
+与直觉命名不同。`mcp_client._extract_payload()` 与 `persona.normalize_orders()`
+针对这两点做了专门处理，并已固化为测试用例。
+
+**当前账号历史订单为空**（`order-list` 返回 `data.list = []`），
+因此人格鉴定走「无订单」分支；营养、积分、优惠券等能力均有真实数据支撑。
 
 ---
 
-## 六、开发工具说明
+## 六、测试与质量
+
+`tests/test_normalize.py` 共 **38 项断言，全部通过**，覆盖：
+
+- Markdown 包装响应的 JSON 提取
+- 真实字段名（`createTime` / `realTotalAmount` / `orderProductList`）解析
+- 套餐子项（`comboItemList`）展开
+- 已取消订单过滤
+- 空 `data` 不产生假订单
+- 品类关键词归类（汉堡/薯条/炸鸡/咖啡/甜品/早餐/饮料）
+- 时段标签的平票不误判
+- 雷达图数值范围
+- 真实 MCP 连通性（设置 Token 时自动执行）
+
+运行方式：
+
+```bash
+MCD_MCP_TOKEN=xxx python tests/test_normalize.py
+```
+
+---
+
+## 七、开发过程中的问题修复记录
+
+| # | 问题 | 修复 |
+|---|---|---|
+| 1 | 本机无 `requests`，项目无法直接运行 | 改用 Python 标准库 `urllib` 重写传输层，做到**零依赖** |
+| 2 | MCP 返回 Markdown，`json.loads` 失败 | 新增 `_extract_payload()` 提取 `## Original Response` 后的 JSON |
+| 3 | 字段名与直觉不符，取不到数据 | 归一化层兼容多组候选键名 |
+| 4 | 套餐子项未计入统计 | 递归展开 `comboItemList` |
+| 5 | 已取消订单被计入人格 | 按 `orderStatus` 过滤 |
+| 6 | 空 `data` 被兜底成 1 条假订单 | 增加 `_ORDER_MARKERS` 校验 |
+| 7 | 时段平票时误打「深夜食堂常客」 | 阈值改为占比严格 > 50%，否则标「多时段型」 |
+| 8 | 雷达图右侧维度标签被裁切 | SVG 增加左右留白，标签半径比 1.22 → 1.18 |
+
+---
+
+## 八、进行中的工作
+
+- [x] 活动规则与竞争情报调研
+- [x] 产品设计与算法实现
+- [x] 真实 MCP 调用验证
+- [x] 全部报名文件准备就绪
+- [x] 交接文档 `HANDOVER.md`
+- [ ] 创建 GitHub 公开仓库并推送（见 `HANDOVER.md`）
+- [ ] 提交报名 Issue
+- [ ] 冲榜推广（目标：进入排行榜前列）
+
+---
+
+## 九、开发工具说明
 
 本项目全程使用**腾讯 WorkBuddy** 智能体开发：
 
 - 使用 WorkBuddy 完成活动规则抓取、官方文档解析与竞争情报分析
 - 使用 WorkBuddy 完成产品设计、算法实现与代码编写
-- 使用 WorkBuddy 完成仓库文件撰写与报名材料准备
+- 使用 WorkBuddy 完成真实 MCP 连通性验证与缺陷修复
+- 使用 WorkBuddy 完成仓库文件撰写、报名材料与推广物料准备
 
 WorkBuddy 是本次麦当劳程序员创意开发大赛的**官方合作伙伴**。

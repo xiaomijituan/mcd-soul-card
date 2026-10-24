@@ -242,10 +242,59 @@ class McDonaldMCP:
             return payload
 
         raw = "\n".join(texts).strip()
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
+        return self._extract_payload(raw)
+
+    @staticmethod
+    def _extract_payload(raw: str) -> Any:
+        """
+        麦当劳 MCP Server 的响应是 Markdown 包装：
+
+            # API Response Information
+            ...
+            ## Response Structure
+            <字段说明>
+            ## Original Response
+            {"success":true,...,"data":{...}}
+
+        真正可用的数据在 `## Original Response` 之后。这里统一把它提取成
+        JSON 对象；提取失败则原样返回文本。
+        """
+        s = raw.strip()
+        if not s:
             return raw
+
+        # 情况 1：本身就是 JSON
+        try:
+            return json.loads(s)
+        except json.JSONDecodeError:
+            pass
+
+        # 情况 2：Markdown 包装
+        marker = "## Original Response"
+        idx = s.find(marker)
+        if idx >= 0:
+            tail = s[idx + len(marker):].strip()
+            if tail.startswith("```"):
+                # 去掉代码围栏
+                parts = tail.split("```")
+                tail = parts[1] if len(parts) > 1 else tail[3:]
+                tail = tail.strip()
+                if tail[:4].lower() == "json":
+                    tail = tail[4:].strip()
+            try:
+                return json.loads(tail)
+            except json.JSONDecodeError:
+                pass
+
+        # 情况 3：兜底，扫描第一个可解析的 JSON 片段
+        for i, ch in enumerate(s):
+            if ch in "{[":
+                try:
+                    return json.loads(s[i:])
+                except json.JSONDecodeError:
+                    continue
+
+        return raw
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<McDonaldMCP endpoint={self.endpoint} session={self.session_id}>"

@@ -168,14 +168,51 @@ mcd-soul-card/
 ├── mcp-config.example.json   # 脱敏配置示例（仅占位符）
 ├── workbuddy.md              # WorkBuddy 开发对话上下文
 ├── SKILL.md                  # Skill 定义
+├── PROMO.md                  # 冲榜推广物料（5 个平台的成品文案）
+├── HANDOVER.md               # 参赛推送与报名交接文档
 ├── src/
 │   ├── main.py               # 主入口
 │   ├── mcp_client.py         # MCP 客户端（Streamable HTTP，零依赖）
 │   ├── persona.py            # 人格鉴定算法
 │   └── card.py               # 卡片渲染
-└── web/
-    └── index.html            # 网页版（单文件，离线可用）
+├── tests/
+│   └── test_normalize.py     # 38 项断言，全部通过
+├── web/
+│   └── index.html            # 网页版（单文件，离线可用）
+└── images/
+    └── demo_card.png         # 示例卡片
 ```
+
+---
+
+## ✅ 测试
+
+```bash
+python tests/test_normalize.py
+```
+
+38 项断言覆盖：Markdown 响应提取、真实字段名解析、套餐子项展开、
+已取消订单过滤、空数据兜底、品类归类、时段标签平票判定、雷达图数值范围。
+
+设置 `MCD_MCP_TOKEN` 后会额外执行**真实 MCP 连通性测试**：
+
+```bash
+MCD_MCP_TOKEN=xxx python tests/test_normalize.py
+```
+
+---
+
+## 🐛 已处理的真实坑
+
+开发时通过真实调用麦当劳 MCP 发现了几个文档里没写的问题，都已修复并固化为测试：
+
+| 坑 | 说明 |
+|---|---|
+| **响应不是纯 JSON** | 返回是 Markdown 包装，真实数据在 `## Original Response` 之后 |
+| **字段名不能猜** | 实际是 `createTime` / `realTotalAmount` / `orderProductList[].productName` |
+| **套餐子项要展开** | `orderProductList[].comboItemList` 里的商品同样计入统计 |
+| **已取消订单要过滤** | `orderStatus` 含「取消」的订单不该进人格统计 |
+| **空 data 会造出假订单** | `{"data":{}}` 会被兜底成一条空订单 |
 
 ---
 

@@ -99,13 +99,17 @@ class Persona:
 
 # MCP 各工具返回字段命名可能不一致，这里尽量兼容常见写法
 _TIME_KEYS = [
-    "orderTime", "order_time", "createdAt", "created_at", "createTime",
-    "create_time", "payTime", "pay_time", "time", "date",
+    "createTime", "orderTime", "order_time", "createdAt", "created_at",
+    "createTimeStr", "payTime", "pay_time", "time", "date",
 ]
 _AMOUNT_KEYS = [
-    "payAmount", "pay_amount", "totalAmount", "total_amount", "amount",
-    "actualAmount", "actual_amount", "price", "total",
+    "realTotalAmount", "payAmount", "pay_amount", "totalAmount", "total_amount",
+    "amount", "actualAmount", "actual_amount", "price", "total",
 ]
+# 门店名可能出现的键
+_STORE_KEYS = ["storeName", "store_name", "shopName", "shop_name"]
+# 订单状态
+_STATUS_KEYS = ["orderStatus", "order_status", "status"]
 
 
 def _first(d: dict, keys: list[str], default=None):
@@ -173,11 +177,20 @@ def normalize_orders(raw: Any) -> list[Order]:
     for rec in records:
         if not isinstance(rec, dict):
             continue
+        # 过滤非订单记录（如空 data 被包装成整个响应体的情况）
+        if not any(k in rec for k in _ORDER_MARKERS):
+            continue
+
+        # 已取消 / 已关闭的订单不计入人格统计
+        status = str(_first(rec, _STATUS_KEYS, "")).strip()
+        if status and any(k in status.lower() for k in ("取消", "cancel", "关闭", "closed", "失败", "fail")):
+            continue
+
         order = Order(
             order_id=str(_first(rec, ["orderId", "order_id", "orderNo", "order_no", "id"], "")),
             created_at=_to_datetime(_first(rec, _TIME_KEYS)),
             amount=_to_float(_first(rec, _AMOUNT_KEYS, 0.0)),
-            store_name=str(_first(rec, ["storeName", "store_name", "shopName", "shop_name"], "")),
+            store_name=str(_first(rec, _STORE_KEYS, "")),
             coupon_used=bool(_first(rec, ["couponUsed", "coupon_used", "useCoupon"], False)),
         )
         order.items = _extract_items(rec)
@@ -210,26 +223,59 @@ def _extract_records(raw: Any) -> list[Any]:
             inner = _extract_records(val)
             if inner:
                 return inner
+
+    # 明确含有 data/result 但内部没有任何列表 → 认定为「无数据」，不构造假记录
+    for key in ("data", "result", "orders", "orderList"):
+        if key in raw and isinstance(raw[key], (dict, list)):
+            return []
+
     return [raw]
 
 
+# 判定一条记录是否真的是「订单」所需具备的字段
+_ORDER_MARKERS = (
+    "orderId", "order_id", "orderNo", "order_no",
+    "orderProductList", "items", "itemList",
+    "createTime", "orderTime", "realTotalAmount", "payAmount",
+)
+
+
 def _extract_items(rec: dict) -> list[Item]:
+    """提取商品明细，兼容 orderProductList / items 等多种结构，并展开套餐子项。"""
     raw_items = None
-    for key in ("items", "itemList", "item_list", "products", "goods", "details", "mealList"):
+    for key in (
+        "orderProductList", "items", "itemList", "item_list", "products",
+        "goods", "details", "mealList",
+    ):
         if isinstance(rec.get(key), list):
             raw_items = rec[key]
             break
 
     items: list[Item] = []
-    for it in raw_items or []:
-        if not isinstance(it, dict):
-            continue
-        name = str(_first(it, ["name", "itemName", "item_name", "productName", "goodsName", "title"], "")).strip()
-        if not name:
-            continue
-        qty = int(_to_float(_first(it, ["qty", "quantity", "count", "num"], 1.0)) or 1)
-        price = _to_float(_first(it, ["price", "amount", "total", "salePrice"], 0.0))
-        items.append(Item(name=name, category=classify(name), qty=max(1, qty), price=price))
+
+    def walk(nodes: list[Any], depth: int = 0) -> None:
+        if depth > 3:
+            return
+        for it in nodes:
+            if not isinstance(it, dict):
+                continue
+            name = str(
+                _first(it, ["name", "itemName", "item_name", "productName",
+                            "goodsName", "title"], "")
+            ).strip()
+            if name:
+                qty = int(_to_float(_first(it, ["qty", "quantity", "count", "num"], 1.0)) or 1)
+                price = _to_float(_first(it, ["price", "productPrice", "amount", "total", "salePrice"], 0.0))
+                items.append(
+                    Item(name=name, category=classify(name), qty=max(1, qty), price=price)
+                )
+            # 套餐子项（comboItemList）同样计入
+            for sub_key in ("comboItemList", "comboItems", "subItemList", "children"):
+                sub = it.get(sub_key)
+                if isinstance(sub, list):
+                    walk(sub, depth + 1)
+
+    walk(raw_items or [])
     return items
 
 
@@ -294,13 +340,28 @@ def build_persona(orders: list[Order], nutrition: dict[str, dict] | None = None)
         tags.append("原价贵族")
 
     if slot_counter:
-        dominant_slot = slot_counter.most_common(1)[0][0]
+        slot_total = sum(slot_counter.values())
+        dominant_slot, dominant_n = slot_counter.most_common(1)[0]
+        # 只有当某时段严格过半才算「常驻」，避免订单少时平票误判
+        slot_dominant = dominant_n / slot_total > 0.5
+    else:
+        dominant_slot, slot_dominant = "", False
+
+    tags: list[str] = []
+    if coupon_rate >= 0.5:
+        tags.append("麦麦省猎人")
+    elif coupon_rate <= 0.1 and total_orders >= 3:
+        tags.append("原价贵族")
+
+    if slot_dominant:
         if dominant_slot == "夜宵":
             tags.append("深夜食堂常客")
         elif dominant_slot == "早餐":
             tags.append("早餐战士")
         elif dominant_slot == "下午茶":
             tags.append("摸鱼下午茶搭子")
+        elif dominant_slot == "午餐":
+            tags.append("正午补给站")
 
     if cat_counter.get("咖啡", 0) >= max(3, total_items * 0.25):
         tags.append("咖啡因依赖")
@@ -342,7 +403,7 @@ def build_persona(orders: list[Order], nutrition: dict[str, dict] | None = None)
         "首次下单": first_at.strftime("%Y-%m-%d") if first_at else "—",
         "最近下单": last_at.strftime("%Y-%m-%d") if last_at else "—",
         "麦龄": f"{days} 天" if days else "—",
-        "最常出没": slot_counter.most_common(1)[0][0] if slot_counter else "—",
+        "最常出没": dominant_slot if slot_dominant else "多时段型",
     }
 
     title = f"{soul}"
